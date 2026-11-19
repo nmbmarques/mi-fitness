@@ -1,4 +1,4 @@
-"""健康数据查询（心率、睡眠、步数等）。"""
+"""Health data queries (heart rate, sleep, steps, etc.)."""
 
 from __future__ import annotations
 
@@ -65,7 +65,7 @@ _LatestMetricT = TypeVar(
 async def _get_first_shared_or_none(
     fetcher: Callable[[], Awaitable[list[_SeriesDataT]]],
 ) -> _SeriesDataT | None:
-    """摘要接口专用：未共享时返回 None，其余异常继续向上抛。"""
+    """For summary endpoints only: return None if not shared; re-raise any other exception."""
     try:
         result = await fetcher()
     except DataOutOfSharedTimeScopeError:
@@ -75,9 +75,9 @@ async def _get_first_shared_or_none(
     return result[0] if result else None
 
 
-# region 最新数据
+# region Latest data
 async def _get_latest_response(client: MiHealthClient, relative_uid: int) -> LatestDataResponse:
-    """获取并解析最新数据响应。"""
+    """Fetch and parse the latest data response."""
     resp = await client._request(
         "GET",
         RELATIVES_LATEST_DATA_PATH,
@@ -87,12 +87,12 @@ async def _get_latest_response(client: MiHealthClient, relative_uid: int) -> Lat
 
 
 async def get_latest_items(client: MiHealthClient, relative_uid: int) -> list[LatestDataItem]:
-    """获取亲友的原始最新数据项列表。"""
+    """Get a relative's raw list of latest data items."""
     return (await _get_latest_response(client, relative_uid)).data_items
 
 
 async def get_latest_data(client: MiHealthClient, relative_uid: int) -> LatestDataSnapshot:
-    """获取亲友的最新数据快照（强类型聚合视图）。"""
+    """Get a relative's latest data snapshot (strongly typed aggregate view)."""
     return (await _get_latest_response(client, relative_uid)).snapshot
 
 
@@ -103,7 +103,7 @@ async def _get_latest_metric(
     attr_name: str,
     shared_key: str,
 ) -> _LatestMetricT | None:
-    """读取最新快照中的单项数据，并在未共享时抛出明确异常。"""
+    """Read a single item from the latest snapshot, raising a clear exception if it is not shared."""
     latest = await get_latest_data(client, relative_uid)
     value = getattr(latest, attr_name)
     if value is not None:
@@ -111,14 +111,14 @@ async def _get_latest_metric(
 
     shared_types = await client.get_shared_data_types(relative_uid)
     if shared_key not in shared_types:
-        raise DataNotSharedError(f"未共享该数据类型: {shared_key}", data_type=shared_key)
+        raise DataNotSharedError(f"Data type not shared: {shared_key}", data_type=shared_key)
     return None
 
 
 # endregion
 
 
-# region 聚合数据
+# region Aggregated data
 async def get_aggregated_data(
     client: MiHealthClient,
     relative_uid: int,
@@ -129,7 +129,7 @@ async def get_aggregated_data(
     tag: str = DATA_TAG_DAILY_REPORT,
     limit: int = 30,
 ) -> AggregatedDataResponse:
-    """获取亲友的聚合数据。"""
+    """Get a relative's aggregated data."""
     resp = await client._request(
         "GET",
         RELATIVES_AGGREGATED_DATA_PATH,
@@ -154,7 +154,7 @@ async def get_fitness_data(
     *,
     limit: int = 30,
 ) -> AggregatedDataResponse:
-    """获取亲友的原始测量/事件数据（如体重、血压、异常心率等）。"""
+    """Get a relative's raw measurement/event data (e.g. weight, blood pressure, abnormal heart rate)."""
     resp = await client._request(
         "GET",
         RELATIVES_FITNESS_DATA_PATH,
@@ -172,9 +172,9 @@ async def get_fitness_data(
 # endregion
 
 
-# region 便捷方法
+# region Convenience methods
 def _date_to_timestamps(query_date: date | None = None) -> tuple[int, int]:
-    """将日期转换为当日 00:00 ~ 23:59:59 的时间戳。"""
+    """Convert a date into timestamps for 00:00 to 23:59:59 of that day."""
     d = query_date or date.today()
     tz = timezone(timedelta(hours=8))
     start = int(datetime(d.year, d.month, d.day, tzinfo=tz).timestamp())
@@ -183,7 +183,7 @@ def _date_to_timestamps(query_date: date | None = None) -> tuple[int, int]:
 
 
 def _build_window_timestamps(query_date: date | None, days: int) -> tuple[int, int, int]:
-    """构造以 ``query_date`` 为结束日的查询窗口。"""
+    """Build a query window that ends on ``query_date``."""
     window_days = max(days, 1)
     _, end = _date_to_timestamps(query_date)
     start = end - 86400 * window_days + 1
@@ -194,7 +194,7 @@ def _parse_series_items(
     items: list[AggregatedDataItem],
     parser: Callable[[AggregatedDataItem], _SeriesDataT],
 ) -> list[_SeriesDataT]:
-    """逐条解析数据项，跳过单条脏数据。"""
+    """Parse data items one by one, skipping individual malformed entries."""
     series: list[_SeriesDataT] = []
     for item in items:
         try:
@@ -213,9 +213,9 @@ async def _get_aggregated_series(
     *,
     days: int = 1,
 ) -> list[_SeriesDataT]:
-    """按日期范围拉取聚合数据并转换为目标模型。
+    """Fetch aggregated data for a date range and convert it to the target model.
 
-    ``query_date`` 视为窗口结束日；``days=7`` 表示获取该日及之前 6 天的聚合数据。
+    ``query_date`` is the last day of the window; ``days=7`` fetches that day and the 6 days before it.
     """
     start, end, window_days = _build_window_timestamps(query_date, days)
     resp = await get_aggregated_data(client, relative_uid, key, start, end, limit=window_days)
@@ -231,10 +231,10 @@ async def _get_fitness_series(
     *,
     days: int = 1,
 ) -> list[_SeriesDataT]:
-    """按时间窗口拉取原始测量记录。
+    """Fetch raw measurement records for a time window.
 
-    ``get_fitness_data`` 不是按天一条的聚合接口，因此固定使用较宽松的 ``limit=30``，
-    以避免一周内存在多次测量时被 ``days`` 误伤截断。
+    ``get_fitness_data`` is not a one-record-per-day aggregate endpoint, so a looser fixed ``limit=30`` is used,
+    to avoid truncating results when there are several measurements in a week.
     """
     start, end, window_days = _build_window_timestamps(query_date, days)
     resp = await get_fitness_data(
@@ -255,7 +255,7 @@ async def get_heart_rate(
     *,
     days: int = 1,
 ) -> list[HeartRateData]:
-    """获取亲友的心率数据。"""
+    """Get a relative's heart rate data."""
     return await _get_aggregated_series(
         client,
         relative_uid,
@@ -273,7 +273,7 @@ async def get_sleep(
     *,
     days: int = 1,
 ) -> list[SleepData]:
-    """获取亲友的睡眠数据。"""
+    """Get a relative's sleep data."""
     return await _get_aggregated_series(
         client,
         relative_uid,
@@ -291,7 +291,7 @@ async def get_steps(
     *,
     days: int = 1,
 ) -> list[StepData]:
-    """获取亲友的步数数据。"""
+    """Get a relative's step data."""
     return await _get_aggregated_series(
         client,
         relative_uid,
@@ -309,7 +309,7 @@ async def get_calories_history(
     *,
     days: int = 1,
 ) -> list[CaloriesData]:
-    """获取亲友按天聚合的活动卡路里数据。"""
+    """Get a relative's active calorie data aggregated by day."""
     return await _get_aggregated_series(
         client,
         relative_uid,
@@ -327,7 +327,7 @@ async def get_valid_stand_history(
     *,
     days: int = 1,
 ) -> list[ValidStandData]:
-    """获取亲友按天聚合的有效站立次数。"""
+    """Get a relative's valid stand count aggregated by day."""
     return await _get_aggregated_series(
         client,
         relative_uid,
@@ -345,7 +345,7 @@ async def get_intensity_history(
     *,
     days: int = 1,
 ) -> list[IntensityData]:
-    """获取亲友按天聚合的中高强度活动时长。"""
+    """Get a relative's moderate-to-vigorous activity duration aggregated by day."""
     return await _get_aggregated_series(
         client,
         relative_uid,
@@ -363,7 +363,7 @@ async def get_spo2_history(
     *,
     days: int = 1,
 ) -> list[Spo2SummaryData]:
-    """获取亲友按天聚合的血氧摘要。"""
+    """Get a relative's blood oxygen (SpO2) summary aggregated by day."""
     return await _get_aggregated_series(
         client,
         relative_uid,
@@ -381,7 +381,7 @@ async def get_weight_history(
     *,
     days: int = 1,
 ) -> list[WeightData]:
-    """获取亲友在指定窗口内的体重测量记录。"""
+    """Get a relative's weight measurements within the given window."""
     return await _get_fitness_series(
         client,
         relative_uid,
@@ -399,7 +399,7 @@ async def get_blood_pressure_history(
     *,
     days: int = 1,
 ) -> list[BloodPressureData]:
-    """获取亲友在指定窗口内的血压测量记录。"""
+    """Get a relative's blood pressure measurements within the given window."""
     return await _get_fitness_series(
         client,
         relative_uid,
@@ -411,7 +411,7 @@ async def get_blood_pressure_history(
 
 
 async def get_weight(client: MiHealthClient, relative_uid: int) -> WeightData | None:
-    """获取亲友最新体重数据。"""
+    """Get a relative's latest weight data."""
     return await _get_latest_metric(
         client,
         relative_uid,
@@ -421,7 +421,7 @@ async def get_weight(client: MiHealthClient, relative_uid: int) -> WeightData | 
 
 
 async def get_goal(client: MiHealthClient, relative_uid: int) -> GoalData | None:
-    """获取亲友最新目标完成情况。"""
+    """Get a relative's latest goal completion."""
     return await _get_latest_metric(
         client,
         relative_uid,
@@ -431,7 +431,7 @@ async def get_goal(client: MiHealthClient, relative_uid: int) -> GoalData | None
 
 
 async def get_blood_pressure(client: MiHealthClient, relative_uid: int) -> BloodPressureData | None:
-    """获取亲友最新血压数据。"""
+    """Get a relative's latest blood pressure data."""
     return await _get_latest_metric(
         client,
         relative_uid,
@@ -441,7 +441,7 @@ async def get_blood_pressure(client: MiHealthClient, relative_uid: int) -> Blood
 
 
 async def get_calories(client: MiHealthClient, relative_uid: int) -> CaloriesData | None:
-    """获取亲友最新活动卡路里。"""
+    """Get a relative's latest active calories."""
     return await _get_latest_metric(
         client,
         relative_uid,
@@ -451,7 +451,7 @@ async def get_calories(client: MiHealthClient, relative_uid: int) -> CaloriesDat
 
 
 async def get_valid_stand(client: MiHealthClient, relative_uid: int) -> ValidStandData | None:
-    """获取亲友最新有效站立次数。"""
+    """Get a relative's latest valid stand count."""
     return await _get_latest_metric(
         client,
         relative_uid,
@@ -461,7 +461,7 @@ async def get_valid_stand(client: MiHealthClient, relative_uid: int) -> ValidSta
 
 
 async def get_intensity(client: MiHealthClient, relative_uid: int) -> IntensityData | None:
-    """获取亲友最新中高强度活动时长。"""
+    """Get a relative's latest moderate-to-vigorous activity duration."""
     return await _get_latest_metric(
         client,
         relative_uid,
@@ -471,7 +471,7 @@ async def get_intensity(client: MiHealthClient, relative_uid: int) -> IntensityD
 
 
 async def get_spo2(client: MiHealthClient, relative_uid: int) -> Spo2Data | None:
-    """获取亲友最新血氧数据。"""
+    """Get a relative's latest blood oxygen (SpO2) data."""
     return await _get_latest_metric(
         client,
         relative_uid,
@@ -485,7 +485,7 @@ async def get_daily_summary(
     relative_uid: int,
     query_date: date | None = None,
 ) -> DailySummary:
-    """获取亲友的每日综合健康摘要（并发请求心率、睡眠、步数）。"""
+    """Get a relative's daily combined health summary (heart rate, sleep and steps requested concurrently)."""
     d = query_date or date.today()
 
     heart_rate, sleep, steps = await asyncio.gather(
@@ -507,7 +507,7 @@ async def get_latest_daily_summary(
     client: MiHealthClient,
     relative_uid: int,
 ) -> DailySummary:
-    """获取亲友最近一次有同步数据的每日综合健康摘要。"""
+    """Get a relative's daily combined health summary for the most recent day with synced data."""
     member = await client.find_relative(relative_uid)
     query_date = date.today()
     if member.latest_data_time > 0:

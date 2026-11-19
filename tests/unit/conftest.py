@@ -1,4 +1,4 @@
-"""conftest.py —— pytest 公共 fixture。"""
+"""conftest.py — shared pytest fixtures."""
 
 from __future__ import annotations
 
@@ -12,13 +12,13 @@ from mi_fitness.models import AuthToken
 
 @pytest.fixture
 def ssecurity() -> str:
-    """测试用 ssecurity（base64 编码的 16 字节密钥）。"""
+    """ssecurity for tests (base64-encoded 16-byte key)."""
     return "56nienlY7Ayh4VVJ0ywGGg=="
 
 
 @pytest.fixture
 def auth_token(ssecurity: str) -> AuthToken:
-    """构造一个已登录的 AuthToken。"""
+    """Build a logged-in AuthToken."""
     return AuthToken(
         user_id="123456",
         c_user_id="c_test_user",
@@ -31,7 +31,7 @@ def auth_token(ssecurity: str) -> AuthToken:
 
 @pytest.fixture
 def mock_auth(auth_token: AuthToken) -> XiaomiAuth:
-    """构造一个已登录的 mock XiaomiAuth 实例。"""
+    """Build a logged-in mock XiaomiAuth instance."""
     auth = XiaomiAuth.__new__(XiaomiAuth)
     auth.username = "test"
     auth._password = ""
@@ -42,7 +42,7 @@ def mock_auth(auth_token: AuthToken) -> XiaomiAuth:
     return auth
 
 
-# region 常用 API 响应模板
+# region Common API response templates
 RELATIVE_LIST_RESPONSE = {
     "code": 0,
     "message": "ok",
@@ -50,7 +50,7 @@ RELATIVE_LIST_RESPONSE = {
         "relative_list": [
             {
                 "relative_uid": 1452722403,
-                "relative_note": "妈妈",
+                "relative_note": "Mom",
                 "relative_icon": "https://example.com/avatar.jpg",
                 "latest_data_time": 1717488000,
                 "latest_abnormal_record_time": 0,
@@ -58,7 +58,7 @@ RELATIVE_LIST_RESPONSE = {
             },
             {
                 "relative_uid": 9876543210,
-                "relative_note": "爸爸",
+                "relative_note": "Dad",
                 "relative_icon": "",
                 "latest_data_time": 1717484400,
                 "latest_abnormal_record_time": 0,
@@ -73,7 +73,7 @@ VERIFY_USER_RESPONSE = {
     "message": "ok",
     "result": {
         "userId": 1452722403,
-        "nickname": "测试用户",
+        "nickname": "Test User",
         "icon": "https://example.com/icon.jpg",
     },
 }
@@ -302,7 +302,7 @@ FAMILY_MEMBER_RESPONSE = {
     "message": "ok",
     "result": {
         "family_user_list": [
-            {"userId": 123, "nickname": "家人1"},
+            {"userId": 123, "nickname": "Family 1"},
         ]
     },
 }
@@ -318,7 +318,7 @@ MESSAGE_LIST_RESPONSE = {
                 "type": 1,
                 "receiver": 3188565001,
                 "sender": 1452722403,
-                "extra_data": '{"invite_id":4777767,"auth_data":["heart_rate","sleep"],"nick_name":"测试用户","icon":"https://example.com/avatar.jpg"}',
+                "extra_data": '{"invite_id":4777767,"auth_data":["heart_rate","sleep"],"nick_name":"Test User","icon":"https://example.com/avatar.jpg"}',
                 "is_new": 2,
                 "data_status": 0,
                 "create_time": 1772628283,
@@ -330,7 +330,7 @@ MESSAGE_LIST_RESPONSE = {
                 "type": 5,
                 "receiver": 3188565001,
                 "sender": 1452722403,
-                "extra_data": '{"nick_name":"测试用户","icon":"https://example.com/avatar.jpg"}',
+                "extra_data": '{"nick_name":"Test User","icon":"https://example.com/avatar.jpg"}',
                 "is_new": 2,
                 "data_status": 1,
                 "create_time": 1772625154,

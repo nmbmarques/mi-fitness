@@ -1,4 +1,4 @@
-"""RC4 加密请求基础层。"""
+"""Base layer for RC4-encrypted requests."""
 
 from __future__ import annotations
 
@@ -26,7 +26,7 @@ from mi_fitness.models import AuthToken
 
 
 def _coerce_api_code(value: Any, default: int = -1) -> int:
-    """尽力兼容 int / str 形式的业务码。"""
+    """Best-effort handling of business codes given as int or str."""
     try:
         return int(value)
     except (TypeError, ValueError):
@@ -34,22 +34,22 @@ def _coerce_api_code(value: Any, default: int = -1) -> int:
 
 
 def _extract_api_message(result: dict[str, Any]) -> str:
-    """兼容不同字段名的错误消息。"""
+    """Get the error message, handling different field names."""
     for key in ("message", "msg", "desc", "description"):
         value = result.get(key)
         if isinstance(value, str) and value.strip():
             return value
-    return "未知错误"
+    return "Unknown error"
 
 
 def _is_time_scope_error(message: str) -> bool:
-    """识别“超出亲友共享时间范围”类错误。"""
+    """Detect 'outside the relative's shared time range' errors."""
     normalized = message.strip().lower()
     return "time out of data shared time scope" in normalized
 
 
 def _extract_requested_data_type(params: dict[str, Any] | None) -> str:
-    """从业务参数中提取当前请求的数据类型 key。"""
+    """Extract the requested data type key from the business parameters."""
     if not isinstance(params, dict):
         return ""
     key = params.get("key")
@@ -57,7 +57,7 @@ def _extract_requested_data_type(params: dict[str, Any] | None) -> str:
 
 
 def _build_auth_cookies(token: AuthToken) -> dict[str, str]:
-    """构造健康接口请求所需的认证 cookie。"""
+    """Build the auth cookies required by the health API."""
     return {
         "cUserId": token.c_user_id,
         "serviceToken": token.service_token,
@@ -71,38 +71,38 @@ async def _send_encrypted_http_request(
     enc_params: dict[str, Any],
     cookies: dict[str, str],
 ):
-    """按 HTTP 方法发送已加密请求。"""
+    """Send an encrypted request using the given HTTP method."""
     if method.upper() == "GET":
         return await http.get(url, params=enc_params, cookies=cookies)
     return await http.post(url, data=enc_params, cookies=cookies)
 
 
 def _raise_for_http_status(resp: Any, method: str, path: str) -> None:
-    """将 HTTP 状态码转换为 SDK 异常。"""
+    """Convert an HTTP status code into an SDK exception."""
     if resp.status_code == 401:
-        raise TokenExpiredError(f"认证已过期: {method} {path} -> 401")
+        raise TokenExpiredError(f"Authentication expired: {method} {path} -> 401")
     if resp.status_code != 200:
         raise APIError(
-            f"API 请求失败: {method} {path} -> {resp.status_code}",
+            f"API request failed: {method} {path} -> {resp.status_code}",
             status_code=resp.status_code,
             response_body=resp.text,
         )
 
 
 def _decrypt_result(ssecurity: str, nonce: str, resp: Any) -> dict[str, Any]:
-    """解密并校验响应体。"""
+    """Decrypt and validate the response body."""
     try:
         result = decrypt_response(ssecurity, nonce, resp.text)
     except Exception as e:
         raise APIError(
-            f"响应解密失败: {e}",
+            f"Failed to decrypt response: {e}",
             status_code=resp.status_code,
             response_body=resp.text[:200],
         ) from e
 
     if not isinstance(result, dict):
         raise APIError(
-            f"解密后非 JSON 对象: {type(result)}",
+            f"Decrypted response is not a JSON object: {type(result)}",
             response_body=str(result)[:200],
         )
     return result
@@ -114,35 +114,35 @@ def _raise_for_business_code(
     *,
     params: dict[str, Any] | None = None,
 ) -> NoReturn:
-    """将业务错误码映射为 SDK 异常。"""
+    """Map business error codes to SDK exceptions."""
     msg = _extract_api_message(result)
     body = json.dumps(result, ensure_ascii=False)
 
     if code == ERR_NOT_RELATIVES:
-        raise FamilyMemberNotFoundError(f"非亲友关系 (code={code}): {msg}")
+        raise FamilyMemberNotFoundError(f"Not a relative (code={code}): {msg}")
 
     if code == ERR_NOT_SHARED_DATA_TYPE:
         data_type = _extract_requested_data_type(params)
         suffix = f", key={data_type}" if data_type else ""
         if _is_time_scope_error(msg):
             raise DataOutOfSharedTimeScopeError(
-                f"超出亲友共享时间范围 (code={code}{suffix}): {msg}",
+                f"Outside the relative's shared time range (code={code}{suffix}): {msg}",
                 data_type=data_type,
             )
         raise DataNotSharedError(
-            f"未共享该数据类型 (code={code}{suffix}): {msg}",
+            f"Data type not shared (code={code}{suffix}): {msg}",
             data_type=data_type,
         )
 
     raise APIError(
-        f"API 业务错误 (code={code}): {msg}",
+        f"API business error (code={code}): {msg}",
         code=code,
         response_body=body,
     )
 
 
 def create_api_http() -> RetryAsyncClient:
-    """创建 API 请求专用的 HTTP 客户端。"""
+    """Create an HTTP client dedicated to API requests."""
     return RetryAsyncClient(
         timeout=30.0,
         headers={
@@ -162,29 +162,29 @@ async def encrypted_request(
     *,
     params: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """发送 RC4 加密的 API 请求并解密响应。
+    """Send an RC4-encrypted API request and decrypt the response.
 
     Args:
-        http: HTTP 客户端。
-        token: 已登录的 AuthToken。
-        method: HTTP 方法（GET / POST）。
-        path: API 路径。
-        base_url: API 基础 URL。
-        params: 业务参数。
+        http: HTTP client.
+        token: Logged-in AuthToken.
+        method: HTTP method (GET / POST).
+        path: API path.
+        base_url: API base URL.
+        params: Business parameters.
 
     Returns:
-        解密后的响应 JSON dict。
+        The decrypted response JSON dict.
 
     Raises:
-        APIError: 请求或解密失败。
-        AuthError: 当前未登录。
-        TokenExpiredError: 401 认证过期。
-        FamilyMemberNotFoundError: 非亲友关系。
-        DataNotSharedError: 亲友未共享当前请求的数据类型。
-        DataOutOfSharedTimeScopeError: 请求日期超出亲友共享时间范围。
+        APIError: The request or decryption failed.
+        AuthError: Not currently logged in.
+        TokenExpiredError: 401, authentication expired.
+        FamilyMemberNotFoundError: Not a relative.
+        DataNotSharedError: The relative has not shared the requested data type.
+        DataOutOfSharedTimeScopeError: The requested date is outside the relative's shared time range.
     """
     if not token.service_token or not token.ssecurity:
-        raise AuthError("未登录，请先调用 auth.login()")
+        raise AuthError("Not logged in; call auth.login() first")
 
     ssecurity = token.ssecurity
     enc_params = build_encrypted_params(method, path, ssecurity, params)

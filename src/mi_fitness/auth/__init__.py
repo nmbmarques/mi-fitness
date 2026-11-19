@@ -1,6 +1,6 @@
-"""小米账号认证子包。
+"""Xiaomi account authentication subpackage.
 
-对外只暴露 ``XiaomiAuth``，内部按登录方式拆分为独立模块。
+Only ``XiaomiAuth`` is exposed publicly; internally it is split into separate modules per login method.
 """
 
 from mi_fitness.auth.manager import XiaomiAuth

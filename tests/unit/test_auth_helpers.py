@@ -1,4 +1,4 @@
-"""测试认证辅助函数与 STS 交换。"""
+"""Tests for auth helper functions and the STS exchange."""
 
 from __future__ import annotations
 
@@ -28,7 +28,7 @@ def test_parse_mi_response_supports_start_prefix() -> None:
 
 
 def test_parse_mi_response_raises_auth_error_for_invalid_json() -> None:
-    with pytest.raises(AuthError, match="响应解析失败"):
+    with pytest.raises(AuthError, match="Failed to parse response"):
         auth_helpers.parse_mi_response("&&&START&&&not-json")
 
 
@@ -106,7 +106,7 @@ async def test_extract_service_token_raises_when_missing_everywhere() -> None:
     http.get = AsyncMock(return_value=_response())
     http.cookies.get.return_value = ""
 
-    with pytest.raises(AuthError, match="未能获取 serviceToken"):
+    with pytest.raises(AuthError, match="Failed to obtain serviceToken"):
         await auth_helpers.extract_service_token(http, "https://example.com/login")
 
 

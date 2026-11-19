@@ -1,4 +1,4 @@
-"""认证模块内部工具函数。"""
+"""Internal utility functions for the auth module."""
 
 from __future__ import annotations
 
@@ -20,18 +20,18 @@ _COOKIE_DOMAINS = ("xiaomi.com", "mi.com")
 
 
 def parse_mi_response(text: str) -> dict:
-    """解析小米 API ``&&&START&&&`` 前缀的 JSON 响应。"""
+    """Parse a Xiaomi API JSON response with the ``&&&START&&&`` prefix."""
     body = text
     if body.startswith("&&&START&&&"):
         body = body[len("&&&START&&&") :]
     try:
         return json.loads(body)
     except json.JSONDecodeError as e:
-        raise AuthError(f"响应解析失败: {text[:200]}") from e
+        raise AuthError(f"Failed to parse response: {text[:200]}") from e
 
 
 def create_login_http() -> RetryAsyncClient:
-    """创建登录流程专用的 HTTP 客户端。"""
+    """Create an HTTP client dedicated to the login flow."""
     return RetryAsyncClient(
         follow_redirects=False,
         timeout=30.0,
@@ -43,7 +43,7 @@ def create_login_http() -> RetryAsyncClient:
 
 
 def normalize_captcha_url(captcha_url: str) -> str:
-    """补全图形验证码 URL。"""
+    """Complete the image captcha URL."""
     if captcha_url.startswith("/"):
         return f"https://account.xiaomi.com{captcha_url}"
     return captcha_url
@@ -54,20 +54,20 @@ def set_cookie_for_domains(
     name: str,
     value: str,
 ) -> None:
-    """为小米登录相关域名批量写入 cookie。"""
+    """Write a cookie to all Xiaomi login-related domains."""
     for domain in _COOKIE_DOMAINS:
         http.cookies.set(name, value, domain=domain)
 
 
 async def extract_service_token(http: RetryAsyncClient, location: str) -> str:
-    """跟随登录重定向，从响应 cookie 中提取 serviceToken。
+    """Follow the login redirect and extract serviceToken from the response cookies.
 
     Args:
-        http: HTTP 客户端。
-        location: 登录返回的重定向 URL。
+        http: HTTP client.
+        location: Redirect URL returned by login.
 
     Returns:
-        serviceToken 值。
+        The serviceToken value.
     """
     resp = await http.get(location)
     service_token = ""
@@ -89,7 +89,7 @@ async def extract_service_token(http: RetryAsyncClient, location: str) -> str:
         service_token = str(http.cookies.get("serviceToken", "") or "")
 
     if not service_token:
-        raise AuthError("未能获取 serviceToken")
+        raise AuthError("Failed to obtain serviceToken")
 
     return service_token
 
@@ -99,12 +99,12 @@ async def extract_credentials(
     data: dict,
     token: "AuthToken",
 ) -> None:
-    """从登录响应中提取并保存凭证到 token。
+    """Extract credentials from the login response and save them to the token.
 
     Args:
-        http: HTTP 客户端。
-        data: 登录接口返回的 JSON dict。
-        token: 要写入的 AuthToken 实例。
+        http: HTTP client.
+        data: JSON dict returned by the login endpoint.
+        token: AuthToken instance to write to.
     """
     token.ssecurity = data["ssecurity"]
     token.user_id = str(data.get("userId", ""))
@@ -117,12 +117,12 @@ async def extract_credentials(
         token.service_token = service_token
 
     logger.debug(
-        "凭证提取完成, ssecurity={}, user_id={}",
+        "Credentials extracted, ssecurity={}, user_id={}",
         token.ssecurity[:8] + "...",
         token.user_id,
     )
 
 
 async def async_sleep(seconds: float) -> None:
-    """异步等待，方便测试时 mock。"""
+    """Async sleep, wrapped so it is easy to mock in tests."""
     await asyncio.sleep(seconds)

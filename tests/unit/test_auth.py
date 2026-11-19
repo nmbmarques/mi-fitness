@@ -1,4 +1,4 @@
-"""测试认证模块的内部编排逻辑。"""
+"""Tests for the auth module's internal orchestration logic."""
 
 from __future__ import annotations
 
@@ -29,7 +29,7 @@ class _DummyResponse:
         self.text = text
 
     def raise_for_status(self) -> None:
-        """测试响应默认视为成功。"""
+        """Responses are treated as successful by default."""
 
 
 def _http_response(text: str, status_code: int = 200) -> httpx.Response:
@@ -50,7 +50,9 @@ async def test_send_verification_code_retries_captcha_once(monkeypatch: pytest.M
     ensure_ready = AsyncMock()
     send_ticket = AsyncMock(
         side_effect=[
-            CaptchaRequiredError("需要图形验证码", captcha_url="https://example.com/captcha.png"),
+            CaptchaRequiredError(
+                "Image captcha required", captcha_url="https://example.com/captcha.png"
+            ),
             None,
         ]
     )
@@ -80,7 +82,7 @@ async def test_send_verification_code_stops_after_max_retries(
     auth = _make_auth()
 
     captcha_error = CaptchaRequiredError(
-        "需要图形验证码",
+        "Image captcha required",
         captcha_url="https://example.com/captcha.png",
     )
     send_ticket = AsyncMock(side_effect=[captcha_error] * auth_manager._MAX_CAPTCHA_RETRIES)
@@ -93,7 +95,7 @@ async def test_send_verification_code_stops_after_max_retries(
     monkeypatch.setattr(auth_manager._pwd, "get_phone_info", get_phone_info)
     monkeypatch.setattr(auth_manager._pwd, "fetch_captcha_image", fetch_captcha)
 
-    with pytest.raises(AuthError, match="已连续重试 3 次"):
+    with pytest.raises(AuthError, match="retried 3 times in a row"):
         await auth.send_verification_code(captcha_handler=captcha_handler)
 
     assert send_ticket.await_count == auth_manager._MAX_CAPTCHA_RETRIES
@@ -173,7 +175,7 @@ async def test_refresh_requires_pass_token() -> None:
     auth = _make_auth()
     auth.token = AuthToken(user_id="user-id", pass_token="")
 
-    with pytest.raises(TokenExpiredError, match="无法自动刷新"):
+    with pytest.raises(TokenExpiredError, match="cannot refresh automatically"):
         await auth.refresh()
 
 
@@ -183,7 +185,7 @@ async def test_password_login_wrong_password_raises_auth_error() -> None:
         return_value=_http_response('&&&START&&&{"code":70002,"desc":"invalid credential"}')
     )
 
-    with pytest.raises(AuthError, match="登录失败"):
+    with pytest.raises(AuthError, match="Login failed"):
         await password_module._raw_submit_login(http, "13800138000", "bad", "sign", "callback")
 
 
@@ -198,7 +200,7 @@ async def test_submit_login_requires_device_verification() -> None:
             AsyncMock(return_value={"code": 70016}),
         )
 
-        with pytest.raises(DeviceUntrustedError, match="二次验证"):
+        with pytest.raises(DeviceUntrustedError, match="two-step verification"):
             await password_module.submit_login(
                 http, token, "13800138000", "secret", "sign", "callback"
             )
@@ -215,7 +217,7 @@ async def test_submit_login_requires_trusted_device_when_security_status_non_zer
             AsyncMock(return_value={"code": 0, "securityStatus": 8}),
         )
 
-        with pytest.raises(DeviceUntrustedError, match="设备未受信任"):
+        with pytest.raises(DeviceUntrustedError, match="Device not trusted"):
             await password_module.submit_login(
                 http, token, "13800138000", "secret", "sign", "callback"
             )
@@ -231,7 +233,7 @@ async def test_qr_login_times_out(monkeypatch: pytest.MonkeyPatch) -> None:
     time_values = iter([0.0, 0.0, 1.0])
     monkeypatch.setattr(qr_module.time, "time", lambda: next(time_values))
 
-    with pytest.raises(AuthError, match="二维码扫码超时"):
+    with pytest.raises(AuthError, match="QR code scan timed out"):
         await qr_module.login_qr(http, AuthToken(), max_wait=0)
 
 
@@ -240,8 +242,8 @@ async def test_login_passtoken_requires_non_empty_inputs() -> None:
     http.cookies = MagicMock()
     token = AuthToken()
 
-    with pytest.raises(AuthError, match="passToken 不能为空"):
+    with pytest.raises(AuthError, match="passToken must not be empty"):
         await passtoken_module.login_passtoken(http, token, pass_token="", user_id="uid")
 
-    with pytest.raises(AuthError, match="userId 不能为空"):
+    with pytest.raises(AuthError, match="userId must not be empty"):
         await passtoken_module.login_passtoken(http, token, pass_token="pt", user_id="")

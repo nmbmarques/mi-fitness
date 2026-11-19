@@ -1,7 +1,7 @@
 [project]
 name = "mi-fitness"
 version = "0.2.0"
-description = "小米运动健康亲友数据 SDK"
+description = "SDK for Xiaomi Mi Fitness relatives' health data"
 readme = "README.md"
 requires-python = ">=3.11"
 authors = [{ name = "Misty02600", email = "xiao02600@gmail.com" }]
@@ -105,15 +105,15 @@ select = [
     "RUF",   # Ruff-specific
 ]
 ignore = [
-    "E501",   # 行长度由 formatter 控制
-    "E402",   # 允许模块导入不在文件顶部
-    "UP037",  # 允许引号类型注解
-    "RUF001", # 允许字符串中的中文字符
-    "RUF002", # 允许文档字符串中的中文字符
-    "RUF003", # 允许注释中的中文字符
-    "W191",   # 允许制表符缩进
-    "TID252", # 允许相对导入
-    "B008",   # 允许函数参数默认值中使用函数调用
+    "E501",   # Line length is handled by the formatter
+    "E402",   # Allow module imports that are not at the top of the file
+    "UP037",  # Allow quoted type annotations
+    "RUF001", # Allow ambiguous Unicode characters in strings
+    "RUF002", # Allow ambiguous Unicode characters in docstrings
+    "RUF003", # Allow ambiguous Unicode characters in comments
+    "W191",   # Allow tab indentation
+    "TID252", # Allow relative imports
+    "B008",   # Allow function calls in argument defaults
 ]
 
 [tool.ruff.lint.isort]

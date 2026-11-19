@@ -1,4 +1,4 @@
-"""HTTP 客户端扩展。"""
+"""HTTP client extensions."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ _IDEMPOTENT_METHODS = frozenset({"GET", "HEAD", "OPTIONS", "PUT", "DELETE"})
 
 
 class _RetryableStatusError(Exception):
-    """内部异常：用于触发 tenacity 的状态码重试。"""
+    """Internal exception used to trigger tenacity retries on status codes."""
 
     def __init__(self, response: httpx.Response):
         super().__init__(f"retryable status: {response.status_code}")
@@ -21,25 +21,25 @@ class _RetryableStatusError(Exception):
 
 
 def _is_retryable_error(exc: BaseException) -> bool:
-    """判断异常是否可重试。"""
+    """Decide whether an exception is retryable."""
     if isinstance(exc, _RetryableStatusError):
         return True
     return isinstance(exc, (httpx.NetworkError, httpx.TimeoutException, httpx.RemoteProtocolError))
 
 
 class RetryAsyncClient(httpx.AsyncClient):
-    """带重试能力的异步 HTTP 客户端。
+    """Async HTTP client with retry support.
 
-    继承 ``httpx.AsyncClient``，在 ``request`` 上增加 tenacity 退避重试。
-    默认仅对幂等方法启用重试，避免对发送短信/提交表单等非幂等请求重复提交。
+    Subclasses ``httpx.AsyncClient`` and adds tenacity exponential-backoff retries to ``request``.
+    By default retries are only enabled for idempotent methods, to avoid resubmitting non-idempotent requests such as sending SMS or submitting forms.
 
     Attributes:
-            retry_attempts: 最大重试次数（含首轮请求）。
-            retry_wait_min: 指数退避最小等待秒数。
-            retry_wait_max: 指数退避最大等待秒数。
-            retry_wait_multiplier: 指数退避倍率。
-            retry_statuses: 触发重试的 HTTP 状态码集合。
-            retry_non_idempotent: 是否允许对非幂等方法重试。
+            retry_attempts: Maximum number of attempts (including the first request).
+            retry_wait_min: Minimum exponential-backoff wait, in seconds.
+            retry_wait_max: Maximum exponential-backoff wait, in seconds.
+            retry_wait_multiplier: Exponential-backoff multiplier.
+            retry_statuses: Set of HTTP status codes that trigger a retry.
+            retry_non_idempotent: Whether to allow retries for non-idempotent methods.
     """
 
     def __init__(
@@ -64,7 +64,7 @@ class RetryAsyncClient(httpx.AsyncClient):
     async def request(
         self, method: str, url: str | httpx.URL, *args: Any, **kwargs: Any
     ) -> httpx.Response:
-        """发送请求并按策略自动重试。"""
+        """Send the request, retrying automatically according to the policy."""
         method_upper = method.upper()
         allow_retry = self.retry_non_idempotent or method_upper in _IDEMPOTENT_METHODS
         if self.retry_attempts <= 1 or not allow_retry:
@@ -89,5 +89,5 @@ class RetryAsyncClient(httpx.AsyncClient):
         except _RetryableStatusError as exc:
             return exc.response
 
-        # 理论上不会到达这里，保留兜底以满足类型检查。
+        # Should never be reached in theory; kept as a fallback to satisfy type checking.
         return await super().request(method, url, *args, **kwargs)

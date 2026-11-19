@@ -1,4 +1,4 @@
-"""测试常量 (const.py)。"""
+"""Tests for constants (const.py)."""
 
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ from mi_fitness.const import (
 
 
 class TestAPIEndpoints:
-    """API 端点常量测试。"""
+    """API endpoint constant tests."""
 
     def test_base_url_is_https(self) -> None:
         assert HEALTH_API_BASE.startswith("https://")
@@ -43,25 +43,27 @@ class TestAPIEndpoints:
             RELATIVES_GET_TOPIC_SUBS_PATH,
         ]
         for path in paths:
-            assert path.startswith("/app/v1/relatives/"), f"{path} 不以 /app/v1/relatives/ 开头"
+            assert path.startswith("/app/v1/relatives/"), (
+                f"{path} does not start with /app/v1/relatives/"
+            )
 
 
 class TestSharedDataTypes:
-    """共享数据类型常量测试。"""
+    """Shared data type constant tests."""
 
     def test_has_10_types(self) -> None:
         assert len(ALL_SHARED_DATA_TYPES) == 10
 
     def test_contains_core_types(self) -> None:
         for key in ["heart_rate", "sleep", "steps", "weight", "spo2"]:
-            assert key in ALL_SHARED_DATA_TYPES, f"缺少 {key}"
+            assert key in ALL_SHARED_DATA_TYPES, f"Missing {key}"
 
     def test_no_duplicates(self) -> None:
         assert len(ALL_SHARED_DATA_TYPES) == len(set(ALL_SHARED_DATA_TYPES))
 
 
 class TestVerifyTypes:
-    """验证类型常量测试。"""
+    """Verification type constant tests."""
 
     def test_values(self) -> None:
         assert VERIFY_TYPE_XIAOMI_ID == 1

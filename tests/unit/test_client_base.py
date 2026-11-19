@@ -1,4 +1,4 @@
-"""测试基础请求层的边界容错。"""
+"""Tests for edge-case tolerance in the base request layer."""
 
 from __future__ import annotations
 
@@ -72,7 +72,7 @@ async def test_encrypted_request_requires_authenticated_token(auth_token) -> Non
     http = MagicMock()
     auth_token.service_token = ""
 
-    with pytest.raises(AuthError, match="未登录"):
+    with pytest.raises(AuthError, match="Not logged in"):
         await encrypted_request(http, auth_token, "GET", "/app/v1/test")
 
 
@@ -126,7 +126,9 @@ async def test_encrypted_request_raises_time_scope_error_for_out_of_range_dates(
         },
     )
 
-    with pytest.raises(DataOutOfSharedTimeScopeError, match="超出亲友共享时间范围") as exc_info:
+    with pytest.raises(
+        DataOutOfSharedTimeScopeError, match="Outside the relative's shared time range"
+    ) as exc_info:
         await encrypted_request(
             http,
             auth_token,

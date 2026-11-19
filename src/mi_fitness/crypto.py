@@ -1,4 +1,4 @@
-"""小米云服务加密模块。"""
+"""Xiaomi cloud service encryption module."""
 
 from __future__ import annotations
 
@@ -12,15 +12,15 @@ from typing import Any
 
 
 def _rc4_crypt(key: bytes, data: bytes, *, skip: int = 1024) -> bytes:
-    """RC4 加密/解密（带前 N 字节跳过，防止密钥流弱点）。
+    """RC4 encrypt/decrypt (skipping the first N keystream bytes to avoid keystream weaknesses).
 
     Args:
-        key: RC4 密钥。
-        data: 待加密/解密的数据。
-        skip: 跳过前 N 字节的密钥流（默认 1024）。
+        key: RC4 key.
+        data: Data to encrypt/decrypt.
+        skip: Number of initial keystream bytes to skip (default 1024).
 
     Returns:
-        加密/解密后的字节数据。
+        The encrypted/decrypted bytes.
     """
     s = list(range(256))
     j = 0
@@ -34,13 +34,13 @@ def _rc4_crypt(key: bytes, data: bytes, *, skip: int = 1024) -> bytes:
     i = 0
     j = 0
 
-    # 跳过前 skip 字节密钥流
+    # Skip the first `skip` bytes of keystream
     for _ in range(skip):
         i = (i + 1) & 0xFF
         j = (j + s[i]) & 0xFF
         s[i], s[j] = s[j], s[i]
 
-    # 加密/解密
+    # Encrypt/decrypt
     result = bytearray(len(data))
     for idx in range(len(data)):
         i = (i + 1) & 0xFF
@@ -52,12 +52,12 @@ def _rc4_crypt(key: bytes, data: bytes, *, skip: int = 1024) -> bytes:
 
 
 def generate_nonce() -> str:
-    """生成请求 nonce。
+    """Generate a request nonce.
 
-    格式: base64(random_8_bytes + minutes_since_epoch_4bytes_BE)
+    Format: base64(random_8_bytes + minutes_since_epoch_4bytes_BE)
 
     Returns:
-        Base64 编码的 nonce 字符串。
+        Base64-encoded nonce string.
     """
     random_part = os.urandom(8)
     minutes = int(time.time() / 60)
@@ -66,16 +66,16 @@ def generate_nonce() -> str:
 
 
 def compute_signed_nonce(ssecurity: str, nonce: str) -> str:
-    """计算签名 nonce（用于密钥派生）。
+    """Compute the signed nonce (used for key derivation).
 
     signed_nonce = base64(SHA256(b64decode(ssecurity) + b64decode(nonce)))
 
     Args:
-        ssecurity: 登录时获取的 ssecurity（base64 编码）。
-        nonce: 请求 nonce。
+        ssecurity: ssecurity obtained at login (base64-encoded).
+        nonce: Request nonce.
 
     Returns:
-        Base64 编码的 signed_nonce（同时作为 RC4 和 HMAC 的密钥）。
+        Base64-encoded signed_nonce (used as the key for both RC4 and HMAC).
     """
     hash_val = hashlib.sha256(base64.b64decode(ssecurity) + base64.b64decode(nonce)).digest()
     return base64.b64encode(hash_val).decode()
@@ -84,17 +84,17 @@ def compute_signed_nonce(ssecurity: str, nonce: str) -> str:
 # endregion
 
 
-# region 签名生成
+# region Signature generation
 def _sha1_b64(message: str) -> str:
-    """纯 SHA1 哈希 → Base64 编码。
+    """Plain SHA1 hash → Base64 encoding.
 
-    App 使用 MessageDigest("SHA1") 而非 HMAC 来生成签名。
+    The app uses MessageDigest("SHA1") rather than HMAC to generate the signature.
 
     Args:
-        message: 待哈希的 UTF-8 字符串。
+        message: UTF-8 string to hash.
 
     Returns:
-        Base64 编码的 SHA1 摘要（28 字符）。
+        Base64-encoded SHA1 digest (28 characters).
     """
     digest = hashlib.sha1(message.encode("utf-8")).digest()
     return base64.b64encode(digest).decode()
@@ -106,22 +106,22 @@ def _build_sig_message(
     params: dict[str, str],
     signed_nonce: str,
 ) -> str:
-    """构建签名消息字符串（z94.b 格式）。
+    """Build the signature message string (z94.b format).
 
-    格式: METHOD&/path&k1=v1&k2=v2&...&signedNonce_b64
-    - method 大写
-    - path 带前导 /
-    - params 按 key 字典序（TreeMap）排序
-    - 最后追加 signedNonce 的 base64 字符串
+    Format: METHOD&/path&k1=v1&k2=v2&...&signedNonce_b64
+    - method in upper case
+    - path with a leading /
+    - params sorted lexicographically by key (TreeMap)
+    - the base64 signedNonce string is appended at the end
 
     Args:
-        method: HTTP 方法。
-        url_path: URL 路径（须含前导 /）。
-        params: 参数字典（已排除空 key/value）。
-        signed_nonce: Base64 编码的 signed_nonce。
+        method: HTTP method.
+        url_path: URL path (must include the leading /).
+        params: Parameter dict (empty keys/values already excluded).
+        signed_nonce: Base64-encoded signed_nonce.
 
     Returns:
-        用 & 连接的签名消息。
+        The signature message joined with &.
     """
     parts: list[str] = [method.upper()]
     if not url_path.startswith("/"):
@@ -137,20 +137,20 @@ def _rc4_stream_encrypt_values(
     key_bytes: bytes,
     sorted_entries: list[tuple[str, str]],
 ) -> dict[str, str]:
-    """用连续 RC4 流加密多个值。
+    """Encrypt several values with one continuous RC4 stream.
 
-    模拟 App 中 d8k 的行为：构造时 drop 1024 字节，
-    然后对 TreeMap 中每个 entry 的 value 按排序顺序
-    依次加密，共用同一个 RC4 密钥流。
+    Mimics the app's d8k behaviour: drop 1024 bytes on construction,
+    then encrypt the value of each TreeMap entry in sorted order,
+    all sharing the same RC4 keystream.
 
     Args:
-        key_bytes: RC4 密钥（signed_nonce 的原始字节）。
-        sorted_entries: 按 key 排序的 (key, value) 对列表。
+        key_bytes: RC4 key (raw bytes of signed_nonce).
+        sorted_entries: List of (key, value) pairs sorted by key.
 
     Returns:
-        {key: base64(encrypted_value)} 字典。
+        A {key: base64(encrypted_value)} dict.
     """
-    # 将所有 value 拼接，一次性过 RC4 流
+    # Concatenate all values and run them through the RC4 stream in one pass
     all_bytes = b"".join(v.encode("utf-8") for _, v in sorted_entries)
     encrypted_all = _rc4_crypt(key_bytes, all_bytes, skip=1024)
 
@@ -166,16 +166,16 @@ def _rc4_stream_encrypt_values(
 # endregion
 
 
-# region 数据加密/解密
+# region Data encryption/decryption
 def encrypt_data(signed_nonce: str, plaintext: str) -> str:
-    """用 RC4 加密数据。
+    """Encrypt data with RC4.
 
     Args:
-        signed_nonce: 密钥（base64 编码的 SHA256 哈希）。
-        plaintext: 明文 JSON 字符串。
+        signed_nonce: Key (base64-encoded SHA256 hash).
+        plaintext: Plaintext JSON string.
 
     Returns:
-        Base64 编码的密文。
+        Base64-encoded ciphertext.
     """
     key = base64.b64decode(signed_nonce)
     encrypted = _rc4_crypt(key, plaintext.encode("utf-8"))
@@ -183,14 +183,14 @@ def encrypt_data(signed_nonce: str, plaintext: str) -> str:
 
 
 def decrypt_data(signed_nonce: str, ciphertext_b64: str) -> str:
-    """用 RC4 解密数据。
+    """Decrypt data with RC4.
 
     Args:
-        signed_nonce: 密钥（base64 编码的 SHA256 哈希）。
-        ciphertext_b64: Base64 编码的密文。
+        signed_nonce: Key (base64-encoded SHA256 hash).
+        ciphertext_b64: Base64-encoded ciphertext.
 
     Returns:
-        解密后的明文字符串。
+        The decrypted plaintext string.
     """
     key = base64.b64decode(signed_nonce)
     decrypted = _rc4_crypt(key, base64.b64decode(ciphertext_b64))
@@ -200,59 +200,59 @@ def decrypt_data(signed_nonce: str, ciphertext_b64: str) -> str:
 # endregion
 
 
-# region 封装：构建加密请求参数
+# region Wrapper: build encrypted request parameters
 def build_encrypted_params(
     method: str,
     url_path: str,
     ssecurity: str,
     params: dict[str, Any] | None = None,
 ) -> dict[str, str]:
-    """构建完整的加密请求参数。
+    """Build the full set of encrypted request parameters.
 
-    流程（对应 App 中 ua4.c 方法）:
-      1. 计算 signed_nonce = base64(SHA256(ssecurity + nonce))
-      2. 构建原始参数 TreeMap（排除空 key/value）
+    Flow (corresponds to the app's ua4.c method):
+      1. Compute signed_nonce = base64(SHA256(ssecurity + nonce))
+      2. Build the raw parameter TreeMap (excluding empty keys/values)
       3. rc4_hash__ = SHA1(METHOD&/path&k=v&...&signedNonce) → base64
-      4. 将 rc4_hash__ 加入 TreeMap
-      5. 用连续 RC4 流加密所有 TreeMap 值（按 key 排序，drop 1024）
+      4. Add rc4_hash__ to the TreeMap
+      5. Encrypt all TreeMap values with one continuous RC4 stream (sorted by key, drop 1024)
       6. signature = SHA1(METHOD&/path&k=enc_v&...&signedNonce) → base64
-      7. 返回 {加密后各参数, signature, _nonce}
+      7. Return {encrypted parameters, signature, _nonce}
 
     Args:
-        method: HTTP 方法。
-        url_path: API 路径（如 /app/v1/relatives/get_relative_list）。
-        ssecurity: 登录时获取的 ssecurity。
-        params: 要发送的参数字典（将被 JSON 序列化后加密）。
+        method: HTTP method.
+        url_path: API path (e.g. /app/v1/relatives/get_relative_list).
+        ssecurity: ssecurity obtained at login.
+        params: Parameter dict to send (JSON-serialised, then encrypted).
 
     Returns:
-        包含 data, signature, rc4_hash__, _nonce 的参数字典。
+        A parameter dict containing data, signature, rc4_hash__ and _nonce.
     """
     nonce = generate_nonce()
     snonce = compute_signed_nonce(ssecurity, nonce)
     snonce_bytes = base64.b64decode(snonce)
 
-    # Step 1: 构建原始参数 TreeMap（排除空 key/value）
+    # Step 1: Build the raw parameter TreeMap (excluding empty keys/values)
     raw_tree: dict[str, str] = {}
     if params:
         plaintext = json.dumps(params, separators=(",", ":"), ensure_ascii=False)
         raw_tree["data"] = plaintext
 
-    # Step 2: 计算 rc4_hash__（基于原始参数）
+    # Step 2: Compute rc4_hash__ (from the raw parameters)
     rc4_msg = _build_sig_message(method, url_path, raw_tree, snonce)
     rc4_hash_raw = _sha1_b64(rc4_msg)
 
-    # Step 3: 将 rc4_hash__ 插入 TreeMap
+    # Step 3: Insert rc4_hash__ into the TreeMap
     raw_tree["rc4_hash__"] = rc4_hash_raw
 
-    # Step 4: 用连续 RC4 流加密所有值
+    # Step 4: Encrypt all values with one continuous RC4 stream
     sorted_entries = sorted(raw_tree.items())
     encrypted_values = _rc4_stream_encrypt_values(snonce_bytes, sorted_entries)
 
-    # Step 5: 构建加密后参数 TreeMap，计算 signature
+    # Step 5: Build the encrypted parameter TreeMap and compute the signature
     sig_msg = _build_sig_message(method, url_path, encrypted_values, snonce)
     signature = _sha1_b64(sig_msg)
 
-    # Step 6: 组装最终结果
+    # Step 6: Assemble the final result
     result: dict[str, str] = {}
     for k, v in encrypted_values.items():
         result[k] = v
@@ -266,15 +266,15 @@ def decrypt_response(
     nonce: str,
     ciphertext_b64: str,
 ) -> Any:
-    """解密 API 响应。
+    """Decrypt an API response.
 
     Args:
-        ssecurity: 登录时获取的 ssecurity。
-        nonce: 请求时使用的 nonce。
-        ciphertext_b64: Base64 编码的响应密文。
+        ssecurity: ssecurity obtained at login.
+        nonce: Nonce used in the request.
+        ciphertext_b64: Base64-encoded response ciphertext.
 
     Returns:
-        解密后的 JSON 对象。
+        The decrypted JSON object.
     """
     snonce = compute_signed_nonce(ssecurity, nonce)
     plaintext = decrypt_data(snonce, ciphertext_b64)
@@ -282,7 +282,7 @@ def decrypt_response(
     try:
         return json.loads(plaintext)
     except json.JSONDecodeError:
-        # 可能不是 JSON，返回原始字符串
+        # May not be JSON; return the raw string
         return plaintext
 
 

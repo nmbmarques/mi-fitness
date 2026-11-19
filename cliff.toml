@@ -2,11 +2,11 @@
 # https://git-cliff.org/docs/configuration
 
 [changelog]
-# 头部模板
+# Header template
 header = """
 # Changelog\n
 """
-# 提交信息模板
+# Commit message template
 body = """
 {% for group, commits in commits | group_by(attribute="group") -%}
 ### {{ group | striptags | trim | upper_first }}
@@ -16,20 +16,20 @@ body = """
 
 {% endfor -%}
 """
-# 移除尾部空白
+# Strip trailing whitespace
 trim = true
-# 底部模板
+# Footer template
 footer = ""
-# 后处理器
+# Post-processors
 postprocessors = []
 
 [git]
-# 提交分组
+# Commit groups
 commit_parsers = [
     { message = "^feat", group = "✨ Features" },
     { message = "^fix", group = "🐛 Fixes" },
 ]
-# 保护不匹配的破坏性提交
+# Protect breaking commits that don't match a parser
 protect_breaking_commits = true
-# 只保留能被 commit_parsers 匹配到的提交
+# Only keep commits matched by commit_parsers
 filter_commits = true

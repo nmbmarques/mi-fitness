@@ -1,4 +1,4 @@
-"""亲友关系管理（添加 / 删除 / 设置）。"""
+"""Relative relationship management (add / remove / settings)."""
 
 from __future__ import annotations
 
@@ -44,7 +44,7 @@ def _build_auth_content(
     shared_data_types: list[str] | None,
     auth_time_range: int,
 ) -> dict[str, Any]:
-    """构造亲友邀请相关的 auth_content。"""
+    """Build the auth_content for relative invite requests."""
     return {
         "auth_time_range": auth_time_range,
         "auth_data": shared_data_types or ALL_SHARED_DATA_TYPES,
@@ -52,23 +52,23 @@ def _build_auth_content(
 
 
 async def get_relatives(client: MiHealthClient) -> list[FamilyMember]:
-    """获取亲友列表。"""
+    """Get the list of relatives."""
     resp = await client._request("GET", RELATIVES_LIST_PATH)
     parsed = RelativeListResponse(**resp)
     members = parsed.relatives
-    logger.info("获取到 {} 位亲友", len(members))
+    logger.info("Found {} relative(s)", len(members))
     return members
 
 
 async def find_relative(client: MiHealthClient, keyword: str | int) -> FamilyMember:
-    """按备注名或 UID 查找亲友。"""
+    """Find a relative by nickname or UID."""
     members = await get_relatives(client)
     for m in members:
         if (isinstance(keyword, int) and m.relative_uid == keyword) or (
             isinstance(keyword, str) and keyword.lower() in m.relative_note.lower()
         ):
             return m
-    raise FamilyMemberNotFoundError(f"未找到亲友: {keyword}")
+    raise FamilyMemberNotFoundError(f"Relative not found: {keyword}")
 
 
 async def verify_user(
@@ -77,7 +77,7 @@ async def verify_user(
     *,
     verify_type: int = VERIFY_TYPE_XIAOMI_ID,
 ) -> VerifiedUserInfo | None:
-    """按 UID 或扫码 ID 验证用户信息。"""
+    """Verify user info by UID or scanned QR ID."""
     resp = await client._request(
         "GET",
         RELATIVES_VERIFY_USER_PATH,
@@ -95,7 +95,7 @@ async def invite_relative(
     auth_time_range: int = 3,
     relative_note: str = "",
 ) -> bool:
-    """发送亲友邀请。"""
+    """Send a relative invite."""
     params: dict[str, Any] = {
         "auth_content": _build_auth_content(shared_data_types, auth_time_range),
         "relative_uid": relative_uid,
@@ -105,7 +105,9 @@ async def invite_relative(
 
     resp = await client._request("POST", RELATIVES_SEND_INVITE_PATH, params=params)
     parsed = InviteResponse(**resp)
-    logger.info("邀请发送 {} (uid={})", "成功" if parsed.success else "失败", relative_uid)
+    logger.info(
+        "Invite send {} (uid={})", "succeeded" if parsed.success else "failed", relative_uid
+    )
     return parsed.success
 
 
@@ -117,7 +119,7 @@ async def accept_invite(
     shared_data_types: list[str] | None = None,
     auth_time_range: int = 3,
 ) -> bool:
-    """同意亲友邀请。"""
+    """Accept a relative invite."""
     return await _operate_invite(
         client,
         invite_id,
@@ -133,7 +135,7 @@ async def reject_invite(
     invite_id: int,
     msg_id: int,
 ) -> bool:
-    """拒绝亲友邀请。"""
+    """Reject a relative invite."""
     return await _operate_invite(client, invite_id, msg_id, operate=2)
 
 
@@ -146,7 +148,7 @@ async def _operate_invite(
     shared_data_types: list[str] | None = None,
     auth_time_range: int = 3,
 ) -> bool:
-    """操作亲友邀请（内部）。"""
+    """Act on a relative invite (internal)."""
     params: dict[str, Any] = {
         "auth_content": _build_auth_content(shared_data_types, auth_time_range),
         "invite_id": invite_id,
@@ -155,33 +157,35 @@ async def _operate_invite(
     }
     resp = await client._request("POST", RELATIVES_OPERATE_INVITE_PATH, params=params)
     parsed = OperateInviteResponse(**resp)
-    op_name = "同意" if operate == 1 else "拒绝"
+    op_name = "Accept" if operate == 1 else "Reject"
     logger.info(
-        "{}邀请 {} (invite_id={})",
+        "{} invite {} (invite_id={})",
         op_name,
-        "成功" if parsed.success else "失败",
+        "succeeded" if parsed.success else "failed",
         invite_id,
     )
     return parsed.success
 
 
 async def delete_relative(client: MiHealthClient, relative_uid: int) -> bool:
-    """删除亲友关系。"""
+    """Remove a relative relationship."""
     resp = await client._request(
         "POST",
         RELATIVES_DELETE_PATH,
         params={"relative_uid": relative_uid},
     )
     parsed = DeleteRelativeResponse(**resp)
-    logger.info("删除亲友 {} (uid={})", "成功" if parsed.success else "失败", relative_uid)
+    logger.info(
+        "Remove relative {} (uid={})", "succeeded" if parsed.success else "failed", relative_uid
+    )
     return parsed.success
 
 
 async def get_invite_link_id(client: MiHealthClient) -> int:
-    """获取二维码邀请链接 ID。"""
+    """Get the QR code invite link ID."""
     resp = await client._request("GET", RELATIVES_GET_INVITE_ID_PATH)
     parsed = InviteUniqueIdResponse(**resp)
-    logger.debug("获取邀请 ID: {}", parsed.invite_link_id)
+    logger.debug("Got invite ID: {}", parsed.invite_link_id)
     return parsed.invite_link_id
 
 
@@ -191,7 +195,7 @@ async def get_shared_data_types(
     *,
     direction: int = 2,
 ) -> list[str]:
-    """获取亲友共享的数据类型列表。"""
+    """Get the data types a relative is sharing."""
     resp = await client._request(
         "GET",
         RELATIVES_GET_SHARED_TYPES_PATH,
@@ -205,7 +209,7 @@ async def get_applied_shared_data_types(
     client: MiHealthClient,
     relative_uid: int,
 ) -> list[str]:
-    """获取已申请的共享数据类型。"""
+    """Get the shared data types that have been requested."""
     resp = await client._request(
         "GET",
         RELATIVES_GET_APPLIED_SHARED_TYPES_PATH,
@@ -215,7 +219,7 @@ async def get_applied_shared_data_types(
 
 
 async def get_family_members(client: MiHealthClient) -> list[dict[str, Any]]:
-    """获取家庭成员列表。"""
+    """Get the family member list."""
     resp = await client._request("GET", RELATIVES_GET_FAMILY_MEMBER_PATH)
     parsed = FamilyMemberResponse(**resp)
     return parsed.family_user_list
@@ -226,7 +230,7 @@ async def get_topic_subscriptions(
     relative_uid: int,
     topics: list[str] | None = None,
 ) -> dict[str, Any]:
-    """获取亲友的消息订阅状态。"""
+    """Get a relative's message subscription status."""
     topic_list = list(topics or _DEFAULT_TOPICS)
     resp = await client._request(
         "GET",

@@ -1,21 +1,21 @@
-"""自定义异常。"""
+"""Custom exceptions."""
 
 
 class MiSDKError(Exception):
-    """MiSDK 基础异常。"""
+    """Base MiSDK exception."""
 
 
 class AuthError(MiSDKError):
-    """认证相关错误（登录失败、token 过期等）。"""
+    """Authentication error (login failure, expired token, etc.)."""
 
 
 class APIError(MiSDKError):
-    """API 请求返回非预期结果。
+    """The API request returned an unexpected result.
 
     Attributes:
-        status_code: HTTP 状态码。
-        code: 业务错误码（``result["code"]``，仅业务层错误时有值）。
-        response_body: 原始响应体。
+        status_code: HTTP status code.
+        code: Business error code (``result["code"]``; only set for business-level errors).
+        response_body: Raw response body.
     """
 
     def __init__(
@@ -36,15 +36,15 @@ class APIError(MiSDKError):
 
 
 class DeviceUntrustedError(AuthError):
-    """设备未信任，需要短信验证码完成登录。
+    """Device not trusted; an SMS verification code is needed to complete login.
 
-    新设备首次登录时触发 ``securityStatus != 0``，需要通过短信验证码
-    完成身份验证。可通过 ``login(verification_code_handler=...)`` 自动
-    处理，或手动调用 ``send_verification_code()`` +
-    ``login_with_verification_code()``。
+    Raised when a new device logs in for the first time (``securityStatus != 0``) and identity
+    must be verified with an SMS code. Handle it automatically with ``login(verification_code_handler=...)``,
+    or manually call ``send_verification_code()`` +
+    ``login_with_verification_code()``.
 
     Attributes:
-        security_status: 服务端返回的安全状态码。
+        security_status: Security status code returned by the server.
     """
 
     def __init__(self, message: str, *, security_status: int = 0):
@@ -53,14 +53,14 @@ class DeviceUntrustedError(AuthError):
 
 
 class CaptchaRequiredError(AuthError):
-    """触发图形验证码风控，需要人工识别通过。
+    """Image captcha risk control triggered; a human must solve it.
 
-    在登录流程中服务端可能要求完成图形验证码验证（错误码 87001）。
-    可通过 ``login(captcha_handler=...)`` 自动处理，
-    或捕获此异常后自行下载 ``captcha_url`` 的验证码图片并重试。
+    During login the server may require an image captcha (error code 87001).
+    Handle it automatically with ``login(captcha_handler=...)``,
+    or catch this exception, download the captcha image from ``captcha_url`` yourself and retry.
 
     Attributes:
-        captcha_url: 验证码图片完整 URL。
+        captcha_url: Full URL of the captcha image.
     """
 
     def __init__(self, message: str, *, captcha_url: str = ""):
@@ -69,11 +69,11 @@ class CaptchaRequiredError(AuthError):
 
 
 class TokenExpiredError(AuthError):
-    """Token 已过期，需要重新登录。"""
+    """Token has expired; log in again."""
 
 
 class DataNotSharedError(MiSDKError):
-    """亲友未共享当前请求的数据类型。"""
+    """The relative has not shared the requested data type."""
 
     def __init__(self, message: str, *, data_type: str = ""):
         super().__init__(message)
@@ -81,8 +81,8 @@ class DataNotSharedError(MiSDKError):
 
 
 class DataOutOfSharedTimeScopeError(DataNotSharedError):
-    """请求日期超出亲友允许共享的时间范围。"""
+    """The requested date is outside the time range the relative allows to be shared."""
 
 
 class FamilyMemberNotFoundError(MiSDKError):
-    """找不到指定的亲友。"""
+    """The specified relative could not be found."""
