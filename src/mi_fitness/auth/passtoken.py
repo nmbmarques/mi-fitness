@@ -1,4 +1,4 @@
-"""passToken 交换登录。"""
+"""passToken exchange login."""
 
 from __future__ import annotations
 
@@ -25,22 +25,22 @@ async def login_passtoken(
     user_id: str,
     device_id: str = "",
 ) -> None:
-    """使用 passToken 换取完整登录凭证。
+    """Exchange a passToken for full login credentials.
 
     Args:
-        http: HTTP 客户端。
-        token: 要写入的 AuthToken。
-        pass_token: 小米账号 passToken。
-        user_id: 小米账号 userId。
-        device_id: 设备标识符（可选）。
+        http: HTTP client.
+        token: AuthToken to write to.
+        pass_token: Xiaomi account passToken.
+        user_id: Xiaomi account userId.
+        device_id: Device identifier (optional).
 
     Raises:
-        AuthError: passToken 无效或换取凭证失败。
+        AuthError: The passToken is invalid or the credential exchange failed.
     """
     if not pass_token:
-        raise AuthError("passToken 不能为空")
+        raise AuthError("passToken must not be empty")
     if not user_id:
-        raise AuthError("userId 不能为空")
+        raise AuthError("userId must not be empty")
 
     token.pass_token = pass_token
     token.user_id = user_id
@@ -49,7 +49,7 @@ async def login_passtoken(
     elif not token.device_id:
         token.device_id = f"an_{os.urandom(16).hex()}"
 
-    # 设置 cookies（passToken + deviceId + userId）
+    # Set cookies (passToken + deviceId + userId)
     for name, value in {
         "passToken": pass_token,
         "deviceId": token.device_id,
@@ -57,9 +57,9 @@ async def login_passtoken(
     }.items():
         set_cookie_for_domains(http, name, value)
 
-    logger.info("使用 passToken 换取凭证, userId={}", user_id)
+    logger.info("Exchanging passToken for credentials, userId={}", user_id)
 
-    # 调用 serviceLogin，带上 passToken cookie 会让服务端直接返回凭证
+    # Call serviceLogin; with the passToken cookie the server returns credentials directly
     resp = await http.get(
         XIAOMI_LOGIN_URL,
         params={"_json": "true", "sid": SERVICE_SID_HEALTH},
@@ -74,14 +74,14 @@ async def login_passtoken(
 
     if not ssecurity:
         raise AuthError(
-            "passToken 换取凭证失败：serviceLogin 未返回 ssecurity。"
-            f"响应字段: {', '.join(sorted(data.keys()))}"
+            "passToken credential exchange failed: serviceLogin did not return ssecurity. "
+            f"Response fields: {', '.join(sorted(data.keys()))}"
         )
 
     token.ssecurity = ssecurity
     token.c_user_id = c_user_id
 
-    # 跟随 location 重定向获取 serviceToken
+    # Follow the location redirect to obtain serviceToken
     if location:
         sign_text = f"nonce={nonce_val}&{ssecurity}"
         sha1_digest = hashlib.sha1(sign_text.encode()).digest()
@@ -89,4 +89,4 @@ async def login_passtoken(
         full_url = f"{location}&clientSign={client_sign}"
         token.service_token = await extract_service_token(http, full_url)
 
-    logger.info("passToken 凭证交换完成, user_id={}", token.user_id)
+    logger.info("passToken credential exchange complete, user_id={}", token.user_id)

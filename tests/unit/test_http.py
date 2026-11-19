@@ -1,4 +1,4 @@
-"""测试重试 HTTP 客户端 (http.py)。"""
+"""Tests for the retrying HTTP client (http.py)."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ pytestmark = pytest.mark.asyncio
 
 
 async def test_retries_on_idempotent_get_status_code() -> None:
-    """GET 遇到可重试状态码时应自动重试。"""
+    """GET should retry automatically on retryable status codes."""
     call_count = 0
 
     async def handler(_: httpx.Request) -> httpx.Response:
@@ -36,7 +36,7 @@ async def test_retries_on_idempotent_get_status_code() -> None:
 
 
 async def test_does_not_retry_non_idempotent_post_by_default() -> None:
-    """POST 默认不重试，避免非幂等接口重复提交。"""
+    """POST does not retry by default, to avoid resubmitting non-idempotent requests."""
     call_count = 0
 
     async def handler(_: httpx.Request) -> httpx.Response:
@@ -59,7 +59,7 @@ async def test_does_not_retry_non_idempotent_post_by_default() -> None:
 
 
 async def test_retries_on_network_error_for_get() -> None:
-    """GET 遇到网络异常时应自动重试。"""
+    """GET should retry automatically on network errors."""
     call_count = 0
 
     async def handler(_: httpx.Request) -> httpx.Response:

@@ -1,4 +1,4 @@
-"""测试 CLI 入口与二维码登录。"""
+"""Tests for the CLI entry point and QR code login."""
 
 from __future__ import annotations
 

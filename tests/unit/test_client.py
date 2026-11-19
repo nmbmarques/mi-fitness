@@ -1,6 +1,6 @@
-"""测试 API 客户端 (client.py)。
+"""Tests for the API client (client.py).
 
-使用 mock 替换 _request 方法，验证各业务方法的参数组装和响应解析。
+Replaces the _request method with a mock to check parameter assembly and response parsing for each business method.
 """
 
 from __future__ import annotations
@@ -63,16 +63,16 @@ from .conftest import (
     VERIFY_USER_RESPONSE,
 )
 
-# 使用 pytest fixture 中的 mock_auth
+# Uses mock_auth from the pytest fixtures
 pytestmark = pytest.mark.asyncio
 
 
 def _make_client(mock_auth: Any) -> MiHealthClient:
-    """用 mock auth 构造客户端实例。"""
+    """Build a client instance with the mock auth."""
     return MiHealthClient(mock_auth)
 
 
-# region 亲友列表
+# region Relative list
 class TestGetRelatives:
     async def test_returns_family_members(self, mock_auth: Any) -> None:
         client = _make_client(mock_auth)
@@ -81,8 +81,8 @@ class TestGetRelatives:
         members = await client.get_relatives()
         assert len(members) == 2
         assert members[0].relative_uid == 1452722403
-        assert members[0].relative_note == "妈妈"
-        assert members[1].relative_note == "爸爸"
+        assert members[0].relative_note == "Mom"
+        assert members[1].relative_note == "Dad"
 
         client._request.assert_called_once_with("GET", RELATIVES_LIST_PATH)
 
@@ -96,7 +96,7 @@ class TestGetRelatives:
 # endregion
 
 
-# region 查找亲友
+# region Find relative
 class TestFindRelative:
     async def test_find_by_uid(self, mock_auth: Any) -> None:
         client = _make_client(mock_auth)
@@ -109,21 +109,21 @@ class TestFindRelative:
         client = _make_client(mock_auth)
         client._request = AsyncMock(return_value=RELATIVE_LIST_RESPONSE)
 
-        member = await client.find_relative("妈")
-        assert member.relative_note == "妈妈"
+        member = await client.find_relative("Mo")
+        assert member.relative_note == "Mom"
 
     async def test_not_found_raises(self, mock_auth: Any) -> None:
         client = _make_client(mock_auth)
         client._request = AsyncMock(return_value=RELATIVE_LIST_RESPONSE)
 
         with pytest.raises(FamilyMemberNotFoundError):
-            await client.find_relative("不存在的人")
+            await client.find_relative("Nonexistent person")
 
 
 # endregion
 
 
-# region 验证用户
+# region Verify user
 class TestVerifyUser:
     async def test_verify_by_xiaomi_id(self, mock_auth: Any) -> None:
         client = _make_client(mock_auth)
@@ -132,7 +132,7 @@ class TestVerifyUser:
         info = await client.verify_user(1452722403)
         assert info is not None
         assert info.user_id == 1452722403
-        assert info.nickname == "测试用户"
+        assert info.nickname == "Test User"
 
         client._request.assert_called_once_with(
             "GET",
@@ -150,7 +150,7 @@ class TestVerifyUser:
 # endregion
 
 
-# region 邀请亲友
+# region Invite relative
 class TestInviteRelative:
     async def test_invite_success(self, mock_auth: Any) -> None:
         client = _make_client(mock_auth)
@@ -183,10 +183,10 @@ class TestInviteRelative:
         client = _make_client(mock_auth)
         client._request = AsyncMock(return_value=INVITE_RESPONSE)
 
-        await client.invite_relative(123, relative_note="好友")
+        await client.invite_relative(123, relative_note="Friend")
 
         params = client._request.call_args.kwargs["params"]
-        assert params["relative_note"] == "好友"
+        assert params["relative_note"] == "Friend"
 
     async def test_invite_failure(self, mock_auth: Any) -> None:
         client = _make_client(mock_auth)
@@ -198,7 +198,7 @@ class TestInviteRelative:
 # endregion
 
 
-# region 操作邀请（同意/拒绝）
+# region Act on invite (accept/reject)
 class TestOperateInvite:
     async def test_accept_success(self, mock_auth: Any) -> None:
         client = _make_client(mock_auth)
@@ -263,7 +263,7 @@ class TestOperateInvite:
 # endregion
 
 
-# region 删除亲友
+# region Remove relative
 class TestDeleteRelative:
     async def test_delete_success(self, mock_auth: Any) -> None:
         client = _make_client(mock_auth)
@@ -288,7 +288,7 @@ class TestDeleteRelative:
 # endregion
 
 
-# region 邀请链接 ID
+# region Invite link ID
 class TestGetInviteLinkId:
     async def test_returns_snowflake_id(self, mock_auth: Any) -> None:
         client = _make_client(mock_auth)
@@ -303,7 +303,7 @@ class TestGetInviteLinkId:
 # endregion
 
 
-# region 共享数据类型
+# region Shared data types
 class TestGetSharedDataTypes:
     async def test_returns_keys(self, mock_auth: Any) -> None:
         client = _make_client(mock_auth)
@@ -324,7 +324,7 @@ class TestGetSharedDataTypes:
 # endregion
 
 
-# region 家庭成员
+# region Family members
 class TestGetFamilyMembers:
     async def test_returns_list(self, mock_auth: Any) -> None:
         client = _make_client(mock_auth)
@@ -338,7 +338,7 @@ class TestGetFamilyMembers:
 # endregion
 
 
-# region 最新数据
+# region Latest data
 class TestGetLatestData:
     async def test_returns_typed_snapshot(self, mock_auth: Any) -> None:
         client = _make_client(mock_auth)
@@ -382,7 +382,7 @@ class TestGetLatestItems:
 # endregion
 
 
-# region 心率数据
+# region Heart rate data
 class TestGetHeartRate:
     async def test_returns_heart_rate_data(self, mock_auth: Any) -> None:
         client = _make_client(mock_auth)
@@ -427,7 +427,7 @@ class TestGetHeartRate:
 # endregion
 
 
-# region 睡眠数据
+# region Sleep data
 class TestGetSleep:
     async def test_returns_sleep_data(self, mock_auth: Any) -> None:
         client = _make_client(mock_auth)
@@ -444,7 +444,7 @@ class TestGetSleep:
 # endregion
 
 
-# region 步数数据
+# region Step data
 class TestGetSteps:
     async def test_returns_step_data(self, mock_auth: Any) -> None:
         client = _make_client(mock_auth)
@@ -459,7 +459,7 @@ class TestGetSteps:
 # endregion
 
 
-# region 其它聚合指标
+# region Other aggregated metrics
 class TestOtherAggregatedMetrics:
     async def test_history_days_uses_trailing_window(self, mock_auth: Any) -> None:
         client = _make_client(mock_auth)
@@ -603,7 +603,7 @@ class TestOtherAggregatedMetrics:
 # endregion
 
 
-# region 体重数据
+# region Weight data
 class TestGetWeight:
     async def test_returns_weight_data(self, mock_auth: Any) -> None:
         client = _make_client(mock_auth)
@@ -710,11 +710,11 @@ class TestGetLatestMetricHelpers:
 # endregion
 
 
-# region 每日摘要
+# region Daily summary
 class TestGetDailySummary:
     async def test_returns_summary_dict(self, mock_auth: Any) -> None:
         client = _make_client(mock_auth)
-        # 依次返回心率、睡眠、步数的响应
+        # Return the heart rate, sleep and step responses in turn
         client._request = AsyncMock(
             side_effect=[
                 AGGREGATED_HR_RESPONSE,
@@ -738,7 +738,7 @@ class TestGetDailySummary:
                 (),
                 {
                     "relative_uid": 123,
-                    "relative_note": "测试",
+                    "relative_note": "Test",
                     "latest_data_time": 1717488000,
                 },
             )()
@@ -768,7 +768,7 @@ class TestGetDailySummary:
                 (),
                 {
                     "relative_uid": 123,
-                    "relative_note": "测试",
+                    "relative_note": "Test",
                     "latest_data_time": 0,
                 },
             )()
@@ -796,8 +796,8 @@ class TestGetDailySummary:
         client = _make_client(mock_auth)
         client._request = AsyncMock(
             side_effect=[
-                DataNotSharedError("未共享该数据类型", data_type="heart_rate"),
-                DataNotSharedError("未共享该数据类型", data_type="sleep"),
+                DataNotSharedError("Data type not shared", data_type="heart_rate"),
+                DataNotSharedError("Data type not shared", data_type="sleep"),
                 AGGREGATED_STEPS_RESPONSE,
             ]
         )
@@ -817,20 +817,24 @@ class TestGetDailySummary:
         client = _make_client(mock_auth)
         client._request = AsyncMock(
             side_effect=[
-                DataOutOfSharedTimeScopeError("超出亲友共享时间范围", data_type="heart_rate"),
+                DataOutOfSharedTimeScopeError(
+                    "Outside the relative's shared time range", data_type="heart_rate"
+                ),
                 AGGREGATED_SLEEP_RESPONSE,
                 AGGREGATED_STEPS_RESPONSE,
             ]
         )
 
-        with pytest.raises(DataOutOfSharedTimeScopeError, match="超出亲友共享时间范围"):
+        with pytest.raises(
+            DataOutOfSharedTimeScopeError, match="Outside the relative's shared time range"
+        ):
             await client.get_daily_summary(123, date(2024, 6, 4))
 
 
 # endregion
 
 
-# region 上下文管理器
+# region Context manager
 class TestContextManager:
     async def test_async_context_manager(self, mock_auth: Any) -> None:
         async with MiHealthClient(mock_auth) as client:
@@ -840,7 +844,7 @@ class TestContextManager:
 # endregion
 
 
-# region 自动刷新
+# region Automatic refresh
 class TestAutoRefresh:
     async def test_request_refreshes_and_retries_once(self, mock_auth: Any) -> None:
         client = _make_client(mock_auth)
@@ -890,7 +894,7 @@ class TestAutoRefresh:
 # endregion
 
 
-# region 消息接口
+# region Message endpoints
 class TestGetInviteMessages:
     async def test_returns_all_messages(self, mock_auth: Any) -> None:
         client = _make_client(mock_auth)
@@ -901,7 +905,7 @@ class TestGetInviteMessages:
         assert messages[0].msg_id == 152824796151809
         assert messages[0].sender == 1452722403
         assert messages[0].invite_id == 4777767
-        assert messages[0].nick_name == "测试用户"
+        assert messages[0].nick_name == "Test User"
         assert messages[0].is_pending is True
 
         client._request.assert_called_once_with(
@@ -948,7 +952,7 @@ class TestHasNewInvite:
 # endregion
 
 
-# region 时间戳工具（同步测试，不需要 asyncio mark）
+# region Timestamp utilities (synchronous tests, no asyncio mark needed)
 @pytest.mark.filterwarnings("ignore::pytest.PytestWarning")
 class TestDateToTimestamps:
     def test_specific_date(self) -> None:

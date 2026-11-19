@@ -1,4 +1,4 @@
-"""消息（邀请通知）查询。"""
+"""Message (invite notification) queries."""
 
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ async def get_invite_messages(
     limit: int = 30,
     pending_only: bool = False,
 ) -> list[InviteMessage]:
-    """获取亲友邀请消息列表。"""
+    """Get the list of relative invite messages."""
     resp = await client._request(
         "POST",
         MESSAGE_GET_LIST_PATH,
@@ -34,7 +34,7 @@ async def get_invite_messages(
     if pending_only:
         messages = [m for m in messages if m.is_pending]
     logger.debug(
-        "获取邀请消息: {}条 (待处理: {}条)",
+        "Fetched invite messages: {} (pending: {})",
         len(parsed.messages),
         sum(1 for m in parsed.messages if m.is_pending),
     )
@@ -42,7 +42,7 @@ async def get_invite_messages(
 
 
 async def has_new_invite(client: MiHealthClient) -> bool:
-    """检查是否有新的亲友邀请消息。"""
+    """Check whether there are new relative invite messages."""
     resp = await client._request(
         "POST",
         MESSAGE_CHECK_NEW_PATH,

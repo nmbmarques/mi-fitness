@@ -1,4 +1,4 @@
-"""二维码扫码登录。"""
+"""QR code login."""
 
 from __future__ import annotations
 
@@ -25,21 +25,21 @@ async def login_qr(
     poll_interval: float = 2.0,
     max_wait: float = 300.0,
 ) -> None:
-    """执行二维码扫码登录流程。
+    """Run the QR code login flow.
 
     Args:
-        http: HTTP 客户端。
-        token: 要写入的 AuthToken。
-        qr_callback: 二维码展示回调。接收 ``(qr_image_url, login_url)``。
-        poll_interval: 长轮询间隔（秒）。
-        max_wait: 扫码超时时间（秒）。
+        http: HTTP client.
+        token: AuthToken to write to.
+        qr_callback: Callback to display the QR code. Receives ``(qr_image_url, login_url)``.
+        poll_interval: Long-polling interval (seconds).
+        max_wait: QR scan timeout (seconds).
 
     Raises:
-        AuthError: 获取二维码失败或扫码超时。
+        AuthError: Failed to get the QR code, or the scan timed out.
     """
-    logger.info("开始二维码扫码登录")
+    logger.info("Starting QR code login")
 
-    # Step 1: 获取二维码信息
+    # Step 1: Get the QR code info
     qr_params = {
         "_qrsize": "480",
         "qs": f"%3Fsid%3D{SERVICE_SID_HEALTH}%26_json%3Dtrue",
@@ -60,22 +60,22 @@ async def login_qr(
     qr_timeout = qr_data.get("timeout", max_wait)
 
     if not qr_image_url or not long_polling_url:
-        raise AuthError(f"获取二维码失败: {qr_data}")
+        raise AuthError(f"Failed to get QR code: {qr_data}")
 
-    # 通知调用方展示二维码
+    # Tell the caller to display the QR code
     if qr_callback:
         await qr_callback(qr_image_url, login_url)
     else:
-        logger.info("请使用小米账号 APP 扫描二维码登录")
-        logger.info("二维码图片: {}", qr_image_url)
+        logger.info("Scan the QR code with the Xiaomi account app to log in")
+        logger.info("QR code image: {}", qr_image_url)
         if login_url:
-            logger.info("或在浏览器打开: {}", login_url)
+            logger.info("Or open in a browser: {}", login_url)
 
-    # Step 2: 长轮询等待扫码
+    # Step 2: Long-poll until the code is scanned
     effective_timeout = min(float(qr_timeout), max_wait)
     poll_request_timeout = 60.0
     logger.debug(
-        "二维码长轮询开始: effective_timeout={}s, request_timeout={}s",
+        "QR long polling started: effective_timeout={}s, request_timeout={}s",
         f"{effective_timeout:.0f}",
         f"{poll_request_timeout:.0f}",
     )
@@ -84,33 +84,35 @@ async def login_qr(
     while True:
         elapsed = time.time() - start_time
         if elapsed > effective_timeout:
-            raise AuthError(f"二维码扫码超时（{effective_timeout:.0f}s），请重新获取")
+            raise AuthError(
+                f"QR code scan timed out ({effective_timeout:.0f}s); please request a new one"
+            )
 
         try:
-            # 直接调用 httpx.AsyncClient.get 绕过 RetryAsyncClient 的重试
+            # Call httpx.AsyncClient.get directly to bypass RetryAsyncClient's retries
             resp = await httpx.AsyncClient.request(
                 http, "GET", long_polling_url, timeout=poll_request_timeout
             )
         except (asyncio.CancelledError, KeyboardInterrupt):
-            logger.warning("二维码登录轮询被中断")
+            logger.warning("QR login polling was interrupted")
             raise
         except httpx.TimeoutException:
-            logger.debug("长轮询超时，继续等待...")
+            logger.debug("Long poll timed out, still waiting...")
             continue
         except httpx.RequestError as e:
-            logger.warning("长轮询请求失败: {}", e)
+            logger.warning("Long poll request failed: {}", e)
             await async_sleep(poll_interval)
             continue
 
         if resp.status_code != 200:
-            logger.debug("长轮询返回 {}，继续等待...", resp.status_code)
+            logger.debug("Long poll returned {}, still waiting...", resp.status_code)
             await async_sleep(poll_interval)
             continue
 
         break
 
     data = parse_mi_response(resp.text)
-    logger.info("扫码成功, userId={}", data.get("userId"))
+    logger.info("Scan succeeded, userId={}", data.get("userId"))
 
-    # Step 3: 提取凭证
+    # Step 3: Extract credentials
     await extract_credentials(http, data, token)

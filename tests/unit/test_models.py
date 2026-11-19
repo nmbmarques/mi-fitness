@@ -1,6 +1,6 @@
-"""测试数据模型 (models.py)。
+"""Tests for the data models (models.py).
 
-覆盖：模型构造、字段解析、响应包装器的属性方法。
+Covers: model construction, field parsing, and response wrapper properties.
 """
 
 from __future__ import annotations
@@ -44,19 +44,19 @@ from mi_fitness.models import (
 )
 
 
-# region 基础模型测试
+# region Basic model tests
 class TestAuthToken:
-    """AuthToken 模型测试。"""
+    """AuthToken model tests."""
 
     def test_defaults(self) -> None:
-        """空构造应全部默认空串。"""
+        """An empty construction should default everything to empty strings."""
         t = AuthToken()
         assert t.user_id == ""
         assert t.ssecurity == ""
         assert t.service_token == ""
 
     def test_serialization_roundtrip(self) -> None:
-        """JSON 序列化往返。"""
+        """JSON serialisation round trip."""
         t = AuthToken(user_id="123", ssecurity="abc")
         data = t.model_dump_json()
         t2 = AuthToken.model_validate_json(data)
@@ -65,18 +65,18 @@ class TestAuthToken:
 
 
 class TestFamilyMember:
-    """FamilyMember 模型测试。"""
+    """FamilyMember model tests."""
 
     def test_construction(self) -> None:
-        m = FamilyMember(relative_uid=123, relative_note="妈妈")
+        m = FamilyMember(relative_uid=123, relative_note="Mom")
         assert m.relative_uid == 123
-        assert m.relative_note == "妈妈"
+        assert m.relative_note == "Mom"
         assert m.latest_data_time == 0
 
     def test_from_dict(self) -> None:
         data = {
             "relative_uid": 9999,
-            "relative_note": "爸爸",
+            "relative_note": "Dad",
             "relative_icon": "https://img.example.com/a.jpg",
             "latest_data_time": 1717488000,
             "latest_abnormal_record_time": 0,
@@ -137,21 +137,21 @@ class TestWeightData:
 
 class TestVerifiedUserInfo:
     def test_alias_user_id(self) -> None:
-        """userId 别名应映射到 user_id。"""
-        info = VerifiedUserInfo(**{"userId": 12345, "nickname": "测试", "icon": "url"})
+        """The userId alias should map to user_id."""
+        info = VerifiedUserInfo(**{"userId": 12345, "nickname": "Test", "icon": "url"})
         assert info.user_id == 12345
-        assert info.nickname == "测试"
+        assert info.nickname == "Test"
 
     def test_populate_by_name(self) -> None:
-        """也可以用 user_id 直接构造。"""
-        info = VerifiedUserInfo(user_id=999, nickname="直接")  # type: ignore[call-arg]
+        """It can also be constructed with user_id directly."""
+        info = VerifiedUserInfo(user_id=999, nickname="Direct")  # type: ignore[call-arg]
         assert info.user_id == 999
 
 
 # endregion
 
 
-# region LatestDataItem 测试
+# region LatestDataItem tests
 class TestLatestDataItem:
     def test_parse_json_value(self) -> None:
         item = LatestDataItem(
@@ -204,7 +204,7 @@ class TestLatestDataItem:
         assert goal.goal_items[0].target_value == 6000
         assert goal.goal_items[0].metric == GoalMetric.STEPS
         assert goal.goal_items[0].metric_key == "steps"
-        assert goal.goal_items[0].metric_label == "步数"
+        assert goal.goal_items[0].metric_label == "Steps"
 
     def test_goal_accessors_and_unknown_items(self) -> None:
         goal = GoalData.model_validate(
@@ -332,10 +332,10 @@ class TestLatestDataItem:
 # endregion
 
 
-# region AggregatedDataItem 测试
+# region AggregatedDataItem tests
 class TestAggregatedDataItem:
     def test_stringify_dict_value(self) -> None:
-        """dict value 应被自动转为 JSON 字符串。"""
+        """A dict value should be converted to a JSON string automatically."""
         item = AggregatedDataItem(
             time=1717488000,
             key="heart_rate",
@@ -474,7 +474,7 @@ class TestAggregatedDataItem:
 # endregion
 
 
-# region 响应包装器测试
+# region Response wrapper tests
 class TestRelativeListResponse:
     def test_parse_relatives(self) -> None:
         resp = RelativeListResponse(
@@ -500,7 +500,7 @@ class TestRelativeListResponse:
             result={
                 "relative_list": [
                     123,
-                    {"relative_note": "缺少 uid"},
+                    {"relative_note": "missing uid"},
                     {"relative_uid": 222, "relative_note": "B"},
                 ]
             },
@@ -621,7 +621,7 @@ class TestVerifyUserResponse:
     def test_with_user(self) -> None:
         resp = VerifyUserResponse(
             code=0,
-            result={"userId": 12345, "nickname": "用户", "icon": "url"},
+            result={"userId": 12345, "nickname": "User", "icon": "url"},
         )
         info = resp.user_info
         assert info is not None
@@ -715,7 +715,7 @@ class TestFamilyMemberResponse:
 # endregion
 
 
-# region 消息模型测试
+# region Message model tests
 class TestInviteMessage:
     def test_pending_invite(self) -> None:
         msg = InviteMessage(
@@ -723,18 +723,18 @@ class TestInviteMessage:
             module=1,
             type=1,
             sender=1452722403,
-            extra_data='{"invite_id":4777767,"nick_name":"测试","icon":"https://example.com/a.jpg"}',
+            extra_data='{"invite_id":4777767,"nick_name":"Test","icon":"https://example.com/a.jpg"}',
             data_status=0,
         )
         assert msg.invite_id == 4777767
-        assert msg.nick_name == "测试"
+        assert msg.nick_name == "Test"
         assert msg.icon == "https://example.com/a.jpg"
         assert msg.is_pending is True
 
     def test_processed_notification(self) -> None:
-        msg = InviteMessage(type=5, data_status=1, extra_data='{"nick_name":"用户"}')
+        msg = InviteMessage(type=5, data_status=1, extra_data='{"nick_name":"User"}')
         assert msg.invite_id is None
-        assert msg.nick_name == "用户"
+        assert msg.nick_name == "User"
         assert msg.is_pending is False
 
     def test_invalid_extra_data(self) -> None:

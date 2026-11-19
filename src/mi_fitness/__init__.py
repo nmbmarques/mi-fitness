@@ -1,4 +1,4 @@
-"""Mi Fitness —— 小米运动健康亲友数据 SDK。"""
+"""Mi Fitness — SDK for Xiaomi Mi Fitness relatives' health data."""
 
 from mi_fitness.auth import XiaomiAuth
 from mi_fitness.client import MiHealthClient

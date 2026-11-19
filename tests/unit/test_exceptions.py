@@ -1,4 +1,4 @@
-"""测试异常类 (exceptions.py)。"""
+"""Tests for the exception classes (exceptions.py)."""
 
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ from mi_fitness.exceptions import (
 
 
 class TestExceptionHierarchy:
-    """异常继承关系测试。"""
+    """Exception inheritance tests."""
 
     def test_base_exception(self) -> None:
         e = MiSDKError("test")
@@ -51,30 +51,30 @@ class TestExceptionHierarchy:
         assert e.response_body == ""
 
     def test_family_member_not_found(self) -> None:
-        e = FamilyMemberNotFoundError("未找到")
+        e = FamilyMemberNotFoundError("Not found")
         assert isinstance(e, MiSDKError)
 
     def test_captcha_required_inherits_auth(self) -> None:
-        e = CaptchaRequiredError("需要验证码")
+        e = CaptchaRequiredError("Captcha required")
         assert isinstance(e, AuthError)
         assert isinstance(e, MiSDKError)
 
     def test_captcha_required_url(self) -> None:
         url = "https://account.xiaomi.com/pass/getCode?icodeType=login"
-        e = CaptchaRequiredError("验证码风控", captcha_url=url)
+        e = CaptchaRequiredError("Captcha risk control", captcha_url=url)
         assert e.captcha_url == url
-        assert str(e) == "验证码风控"
+        assert str(e) == "Captcha risk control"
 
     def test_captcha_required_default_url(self) -> None:
         e = CaptchaRequiredError("msg")
         assert e.captcha_url == ""
 
     def test_data_not_shared_error(self) -> None:
-        e = DataNotSharedError("未共享", data_type="heart_rate")
+        e = DataNotSharedError("Not shared", data_type="heart_rate")
         assert isinstance(e, MiSDKError)
         assert e.data_type == "heart_rate"
 
     def test_time_scope_error_inherits_data_not_shared(self) -> None:
-        e = DataOutOfSharedTimeScopeError("超出范围", data_type="steps")
+        e = DataOutOfSharedTimeScopeError("Out of range", data_type="steps")
         assert isinstance(e, DataNotSharedError)
         assert e.data_type == "steps"

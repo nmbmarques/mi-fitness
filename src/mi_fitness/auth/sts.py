@@ -1,4 +1,4 @@
-"""STS 安全令牌交换。"""
+"""STS security token exchange."""
 
 from __future__ import annotations
 
@@ -12,13 +12,13 @@ from mi_fitness.models import AuthToken
 
 
 async def sts_exchange(http: RetryAsyncClient, token: AuthToken) -> None:
-    """STS 安全令牌交换。
+    """STS security token exchange.
 
-    使用 deviceId 完成 STS 验证。此步骤非致命，失败仅打印警告。
+    Completes STS verification using the deviceId. This step is non-fatal; a failure only logs a warning.
 
     Args:
-        http: HTTP 客户端。
-        token: 已有 device_id 的 AuthToken。
+        http: HTTP client.
+        token: AuthToken that already has a device_id.
     """
     params = {
         "d": token.device_id,
@@ -33,8 +33,8 @@ async def sts_exchange(http: RetryAsyncClient, token: AuthToken) -> None:
     try:
         resp = await http.get(STS_HEALTH_URL, params=params)
         if resp.text.strip() == "ok":
-            logger.debug("STS 交换成功")
+            logger.debug("STS exchange succeeded")
         else:
-            logger.warning("STS 交换响应: {}", resp.text[:100])
+            logger.warning("STS exchange response: {}", resp.text[:100])
     except Exception as e:
-        logger.warning("STS 交换失败（非致命）: {}", e)
+        logger.warning("STS exchange failed (non-fatal): {}", e)

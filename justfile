@@ -1,38 +1,38 @@
 set windows-shell := ["powershell", "-NoProfile", "-Command"]
 
-# 默认任务列表
+# Default: list tasks
 default:
     @just --list
 
-# 运行测试
+# Run tests
 test:
     uv run pytest
 
-# 版本发布（更新版本号、更新 lock 文件）
+# Release a version (bump version number, update lock file)
 bump:
     uv run cz bump
     uv lock
 
-# 生成 changelog
+# Generate changelog
 changelog:
     uv run git-cliff --latest
 
-# 安装 pre-commit hooks
+# Install pre-commit hooks
 hooks:
     uv run prek install
 
-# 代码检查
+# Lint
 lint:
     uv run ruff check . --fix
 
-# 代码格式化
+# Format code
 format:
     uv run ruff format .
 
-# 类型检查
+# Type check
 check:
     uv run basedpyright
 
-# 更新 pre-commit hooks
+# Update pre-commit hooks
 update:
     uv run prek auto-update
